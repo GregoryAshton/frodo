@@ -75,7 +75,7 @@ setup(name='frodo',
           'scipy',
           'bilby'],
       entry_points={'console_scripts':
-                    ['single_pulse=frodo.single_pulse:main']
+                    ['frodo_single_pulse=frodo.single_pulse:main']
                     },
       classifiers=[
           "Programming Language :: Python :: 3.7",

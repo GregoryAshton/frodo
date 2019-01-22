@@ -1,4 +1,3 @@
-import sys
 import os
 import argparse
 
@@ -20,11 +19,11 @@ def get_inputs():
                         required=True)
     parser.add_argument('--plot', action='store_true', help='Create plots')
     args, _ = parser.parse_known_args()
-    return args
 
-    # Set up some labels
-    args.outdir = 'outdir_single_pulse_{}'.format(args.n_shapelets)
-    args.label = 'single_pulse_{}_shapelets'.format(args.pulse_number)
+    args.outdir = 'single_pulse/outdir_{}_shapelets'.format(args.n_shapelets)
+    args.label = 'pulse_number_{}'.format(args.pulse_number)
+
+    return args
 
 
 def get_model_and_data(args):
@@ -48,16 +47,13 @@ def get_priors(args, data):
     priors = bilby.core.prior.PriorDict()
     priors['base_flux'] = bilby.core.prior.Uniform(
         0, data.max_flux, 'base_flux', latex_label='base flux')
-    priors['tauP'] = bilby.core.prior.Uniform(
-        data.start + 0.25 * data.duration, data.end - 0.25 * data.duration, 'tauP')
-    priors['beta'] = bilby.core.prior.LogUniform(1e-6, 5e-4, 'beta')
+    priors['toa'] = bilby.core.prior.Uniform(
+        data.start + 0.25 * data.duration, data.end - 0.25 * data.duration,
+        'toa')
+    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-3, 'beta')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
-        if i == 0:
-            priors[key] = bilby.core.prior.LogUniform(1e-8, 1, key)
-        else:
-            priors[key] = bilby.core.prior.LogUniform(1e-8, 5e-2, key)
-
+        priors[key] = bilby.core.prior.LogUniform(1e-10, 0.1, key)
     priors['sigma'] = bilby.core.prior.Uniform(0, 5, 'sigma')
     return priors
 
@@ -66,7 +62,8 @@ def run_analysis(inputs, data, model, priors):
     likelihood = PulsarLikelihood(data, model)
 
     run_sampler_kwargs = dict(
-        sampler='dynesty', walks=50, nlive=1000, check_point=True)
+        sampler='dynesty', walks=30, bound='single', nlive=2000,
+        check_point=True)
 
     result = bilby.sampler.run_sampler(
         likelihood=likelihood, priors=priors, label=inputs.label,
@@ -91,7 +88,7 @@ def run_analysis(inputs, data, model, priors):
 
 
 def plot(data, model, result, result_null):
-    xlims = (result.priors['tauP'].minimum, result.priors['tauP'].maximum)
+    xlims = (result.priors['toa'].minimum, result.priors['toa'].maximum)
     xlims = None
     result.plot_corner(priors=True)
     data.plot(result, model, xlims=xlims)
@@ -107,14 +104,16 @@ def save(inputs, data, result, result_null):
         rows.append('C{}'.format(i))
         rows.append('C{}_err'.format(i))
 
-    filename = 'vela_single_pulse_{}_shapelets.summary'.format(inputs.n_shapelets)
+    summary_outdir = 'single_pulse'
+    filename = '{}/vela_single_pulse_{}_shapelets.summary'.format(
+        summary_outdir, inputs.n_shapelets)
     if os.path.isfile(filename) is False:
         with open(filename, 'w+') as f:
             f.write(','.join(rows) + '\n')
 
     p = result.posterior
-    toa_prior_width = result.priors['tauP'].maximum - result.priors['tauP'].minimum
-    row_list = [inputs.pulse_number, p.tauP.median(), p.tauP.std(), p.base_flux.median(),
+    toa_prior_width = result.priors['toa'].maximum - result.priors['toa'].minimum
+    row_list = [inputs.pulse_number, p.toa.median(), p.toa.std(), p.base_flux.median(),
                 p.base_flux.std(), p.beta.median(),
                 p.beta.std(), p.sigma.median(), p.sigma.std(),
                 result.log_evidence, result.log_evidence_err,

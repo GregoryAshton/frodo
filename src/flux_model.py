@@ -47,12 +47,12 @@ class SinglePulseFluxModel(BaseFluxModel):
     def _set_up_parameters(self):
         """ Initiates the parameters """
         self.amp_keys = ["C{}".format(i) for i in range(self.n_shapelets)]
-        self.parameters = dict(beta=None, tauP=None, base_flux=None)
+        self.parameters = dict(beta=None, toa=None, base_flux=None)
         for i in range(self.n_shapelets):
             self.parameters[self.amp_keys[i]] = None
 
     def __call__(self, time, **kwargs):
-        x = (time - kwargs["tauP"]) / kwargs["beta"]
+        x = (time - kwargs["toa"]) / kwargs["beta"]
         pre = np.exp(-x ** 2 / 2) / np.sqrt(kwargs["beta"])
         coefs = [
             kwargs[self.amp_keys[i]] for i in range(self.n_shapelets)
