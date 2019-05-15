@@ -7,7 +7,7 @@ import frodo
 
 # Injection parameters
 pulse_injection_parameters = dict(
-    C0=0.8, C1=0.1, C2=0.3, beta=0.003, tauP=0.05, base_flux=1)
+    C0=0.8, C1=0.1, C2=0.3, beta=0.003, toa=0.05, base_flux=1)
 
 # Instantiate a flux model with 3 components
 flux_model = frodo.flux_model.SinglePulseFluxModel(3)
