@@ -55,10 +55,10 @@ def get_priors(args, data):
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
         priors[key] = bilby.core.prior.LogUniform(1e-8, 1, key)
-    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-3, 'beta')
+    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-1, 'beta')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
-        priors[key] = bilby.core.prior.LogUniform(1e-10, 0.1, key)
+        priors[key] = bilby.core.prior.LogUniform(1e-10, 1, key)
     priors['sigma'] = bilby.core.prior.Uniform(0, 5, 'sigma')
     return priors
 
