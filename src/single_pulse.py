@@ -1,4 +1,4 @@
-import sys
+""" Command line tool for single pulse analysis """
 import os
 import argparse
 
@@ -20,27 +20,28 @@ def get_inputs():
                         required=True)
     parser.add_argument('--plot', action='store_true', help='Create plots')
     args, _ = parser.parse_known_args()
-    return args
 
     # Set up some labels
-    args.outdir = 'outdir_single_pulse_{}'.format(args.n_shapelets)
-    args.label = 'single_pulse_{}_shapelets'.format(args.pulse_number)
+    args.outdir = 'outdir_single_pulse_{}'.format(args.pulse_number)
+    args.label = 'single_pulse_{}_shapelets'.format(args.n_shapelets)
+
+    return args
 
 
 def get_model_and_data(args):
     model = SinglePulseFluxModel(n_shapelets=args.n_shapelets)
 
-    data = TimeDomainData.from_pickle(
+    data = TimeDomainData.from_csv(
         args.data_file, pulse_number=args.pulse_number)
 
-    dt = 0.02
-    sample_rate = data.N / data.duration
-    dw = int(dt / 2 * sample_rate)
-    idxmid = int(0.5 * data.N)
-    tmin = idxmid - dw
-    tmax = idxmid + dw
-    data.time = data.time[tmin: tmax]
-    data.flux = data.flux[tmin: tmax]
+    # dt = 0.02
+    # sample_rate = data.N / data.duration
+    # dw = int(dt / 2 * sample_rate)
+    # idxmid = int(0.5 * data.N)
+    # tmin = idxmid - dw
+    # tmax = idxmid + dw
+    # data.time = data.time[tmin: tmax]
+    # data.flux = data.flux[tmin: tmax]
     return model, data
 
 
@@ -49,14 +50,11 @@ def get_priors(args, data):
     priors['base_flux'] = bilby.core.prior.Uniform(
         0, data.max_flux, 'base_flux', latex_label='base flux')
     priors['tauP'] = bilby.core.prior.Uniform(
-        data.start + 0.25 * data.duration, data.end - 0.25 * data.duration, 'tauP')
-    priors['beta'] = bilby.core.prior.LogUniform(1e-6, 5e-4, 'beta')
+        data.start, data.end, 'tauP')
+    priors['beta'] = bilby.core.prior.LogUniform(1e-6, 1e-1, 'beta')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
-        if i == 0:
-            priors[key] = bilby.core.prior.LogUniform(1e-8, 1, key)
-        else:
-            priors[key] = bilby.core.prior.LogUniform(1e-8, 5e-2, key)
+        priors[key] = bilby.core.prior.LogUniform(1e-8, 1, key)
 
     priors['sigma'] = bilby.core.prior.Uniform(0, 5, 'sigma')
     return priors
@@ -66,7 +64,8 @@ def run_analysis(inputs, data, model, priors):
     likelihood = PulsarLikelihood(data, model)
 
     run_sampler_kwargs = dict(
-        sampler='dynesty', walks=50, nlive=1000, check_point=True)
+        sampler='dynesty', walks=25, nlive=500, n_check_point=5000,
+        check_point=True)
 
     result = bilby.sampler.run_sampler(
         likelihood=likelihood, priors=priors, label=inputs.label,

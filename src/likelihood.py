@@ -44,7 +44,6 @@ class PulsarLikelihood(bilby.core.likelihood.Likelihood):
 
         self.parameters = model.parameters
         self.parameters["sigma"] = None
-        self.sigma = None
         bilby.core.likelihood.Likelihood.__init__(self, dict.fromkeys(self.parameters))
 
         self.x = data.time

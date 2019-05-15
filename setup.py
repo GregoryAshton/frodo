@@ -70,12 +70,11 @@ setup(name='frodo',
           'corner',
           'numpy>=1.9',
           'matplotlib>=2.0',
-          'deepdish',
           'pandas',
           'scipy',
           'bilby'],
       entry_points={'console_scripts':
-                    ['single_pulse=frodo.single_pulse:main']
+                    ['frodo_single_pulse=frodo.single_pulse:main']
                     },
       classifiers=[
           "Programming Language :: Python :: 3.7",
