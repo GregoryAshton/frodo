@@ -1,5 +1,8 @@
+import inspect
+
 import bilby
 import numpy as np
+from scipy.special import logsumexp
 
 
 class NullLikelihood(bilby.core.likelihood.Likelihood):
@@ -74,3 +77,34 @@ class PulsarLikelihood(bilby.core.likelihood.Likelihood):
     @property
     def sigma(self):
         return self.parameters["sigma"]
+
+
+class PulsarHyperLikelihood(bilby.core.likelihood.Likelihood):
+    def __init__(self, df, toa_model):
+        self.log_evidence = df.log_evidence.values
+        self.log_null_evidence = df.log_null_evidence.values
+        self.log_prior_width = np.log(df.toa_prior_width.values)
+        self.pulse_number = df.pulse_number.values.astype(float)
+        self.toa = df.toa.values
+        self.toa_std = df.toa_std.values
+        self.toa_model = toa_model
+        self.function_keys = inspect.getargspec(toa_model).args
+        self.function_keys.pop(0)
+        self.parameters = dict.fromkeys(self.function_keys)
+        self.parameters['sigma_t'] = None
+        self.parameters['xi'] = None
+
+    def log_likelihood(self):
+        xi = self.parameters['xi']
+        sigma_t = self.parameters['sigma_t']
+        sigma2 = sigma_t**2 + self.toa_std**2
+        fpars = {k: self.parameters[k] for k in self.function_keys}
+        residual = self.toa - self.toa_model(self.pulse_number, **fpars)
+        log_l = - residual ** 2 / sigma2 / 2 - np.log(2 * np.pi * sigma2) / 2
+        P_d_S_Lambda = self.log_evidence + log_l + self.log_prior_width
+        d = [np.log(xi) + P_d_S_Lambda,
+             np.log(1 - xi) + self.log_null_evidence]
+        return np.nan_to_num(np.sum(logsumexp(d, axis=0))) - np.sum(self.log_evidence)
+
+
+
