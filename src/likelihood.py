@@ -47,8 +47,7 @@ class PulsarLikelihood(bilby.core.likelihood.Likelihood):
 
         self.parameters = model.parameters
         self.parameters["sigma"] = None
-        bilby.core.likelihood.Likelihood.__init__(
-            self, dict.fromkeys(self.parameters))
+        bilby.core.likelihood.Likelihood.__init__(self, dict.fromkeys(self.parameters))
 
         self.x = data.time
         self.y = data.flux
@@ -104,7 +103,7 @@ class PulsarHyperLikelihood(bilby.core.likelihood.Likelihood):
         log_l = - residual ** 2 / sigma2 / 2 - np.log(2 * np.pi * sigma2) / 2
         P_d_S_Lambda = self.log_evidence + log_l + self.log_prior_width
         d = [np.log(xi) + P_d_S_Lambda,
-             np.log(1-xi) + self.log_null_evidence]
+             np.log(1 - xi) + self.log_null_evidence]
         return np.nan_to_num(np.sum(logsumexp(d, axis=0))) - np.sum(self.log_evidence)
 
 

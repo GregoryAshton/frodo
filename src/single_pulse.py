@@ -1,3 +1,4 @@
+""" Command line tool for single pulse analysis """
 import os
 import argparse
 
@@ -20,8 +21,9 @@ def get_inputs():
     parser.add_argument('--plot', action='store_true', help='Create plots')
     args, _ = parser.parse_known_args()
 
-    args.outdir = 'single_pulse/outdir_{}_shapelets'.format(args.n_shapelets)
-    args.label = 'pulse_number_{}'.format(args.pulse_number)
+    # Set up some labels
+    args.outdir = 'outdir_single_pulse_{}'.format(args.pulse_number)
+    args.label = 'single_pulse_{}_shapelets'.format(args.n_shapelets)
 
     return args
 
@@ -45,6 +47,7 @@ def get_model_and_data(args):
     #import IPython; IPython.embed()
     #data.time = data.time[tmin: tmax]
     #data.flux = data.flux[tmin: tmax]
+
     return model, data
 
 
@@ -66,7 +69,8 @@ def run_analysis(inputs, data, model, priors):
     likelihood = PulsarLikelihood(data, model)
 
     run_sampler_kwargs = dict(
-        sampler='pymultinest', nlive=2000)
+        sampler='dynesty', walks=25, nlive=500, n_check_point=5000,
+        check_point=True)
 
     result = bilby.sampler.run_sampler(
         likelihood=likelihood, priors=priors, label=inputs.label,

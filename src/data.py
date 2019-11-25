@@ -55,15 +55,13 @@ class TimeDomainData:
         return cls._sort_and_filter_dataframe(df, dtstart, duration, pulse_number)
 
 
-    @classmethod
-    def from_pickle(cls, filename, dtstart=None, duration=None, pulse_number=None):
-        """ Read in the time and flux from a python pickle file
+    def from_csv(cls, filename, dtstart=None, duration=None, pulse_number=None):
+        """ Read in the time and flux from a csv
 
         Parameters
         ----------
         filename: str
-            The path to the file to read. It is assumed this is a pandas
-            HDFStore file with a key 'df'
+            The path to the file to read
         dtstart: float, optional
             time-delta from the start from which to truncate the data from. If
             None, then the start of the data is used.
@@ -73,7 +71,7 @@ class TimeDomainData:
             The pulse number to truncate.
 
         """
-        df = pd.read_pickle(filename)
+        df = pd.read_csv(filename)
         return cls._sort_and_filter_dataframe(df, dtstart, duration, pulse_number)
 
     @staticmethod
@@ -88,15 +86,17 @@ class TimeDomainData:
 
         df = df[(tstart <= df.time) & (df.time < tstart + duration)]
 
-        if pulse_number is not None:
-            if pulse_number in df.pulse_number.values:
-                # This shifts the window of pulses to be centered on the start
-                # which is where the pulse is for zero-phase data
-                match_idx = np.arange(len(df))[df.pulse_number == pulse_number]
-                shift_idx = match_idx - int(len(match_idx) / 2.0)
-                df = df.iloc[shift_idx]
-            else:
-                raise ValueError("No data for pulse_number={}".format(pulse_number))
+        df = df[df.pulse_number == pulse_number]
+
+        # if pulse_number is not None:
+        #     if pulse_number in df.pulse_number.values:
+        #         # This shifts the window of pulses to be centered on the start
+        #         # which is where the pulse is for zero-phase data
+        #         match_idx = np.arange(len(df))[df.pulse_number == pulse_number]
+        #         shift_idx = match_idx - int(len(match_idx) / 2.0)
+        #         df = df.iloc[shift_idx]
+        #     else:
+        #         raise ValueError("No data for pulse_number={}".format(pulse_number))
 
         time_domain_data = TimeDomainData()
         time_domain_data.time = df.time.values
