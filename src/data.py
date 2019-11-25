@@ -35,6 +35,27 @@ class TimeDomainData:
         return np.max(self.flux)
 
     @classmethod
+    def from_txt(cls, filename, dtstart=None, duration=None, pulse_number=None):
+        """ Read in the time and flux from a txt file
+
+        Parameters
+        ----------
+        filename: str
+            The path to the file to read.
+        dtstart: float, optional
+            time-delta from the start from which to truncate the data from. If
+            None, then the start of the data is used.
+        duration: float, optional
+            The duration of data to truncate.
+        pulse_number: int:
+            The pulse number to truncate.
+
+        """
+        df = pd.read_csv(filename, sep=" ")
+        return cls._sort_and_filter_dataframe(df, dtstart, duration, pulse_number)
+
+
+    @classmethod
     def from_pickle(cls, filename, dtstart=None, duration=None, pulse_number=None):
         """ Read in the time and flux from a python pickle file
 
