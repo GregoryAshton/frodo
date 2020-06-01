@@ -51,7 +51,7 @@ class TimeDomainData:
             The pulse number to truncate.
 
         """
-        df = pd.read_csv(filename, sep=" ")
+        df = pd.read_csv(filename)
         return cls._sort_and_filter_dataframe(df, dtstart, duration, pulse_number)
 
     def from_csv(cls, filename, dtstart=None, duration=None, pulse_number=None):

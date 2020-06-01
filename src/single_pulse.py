@@ -38,30 +38,20 @@ def get_model_and_data(args):
         data = TimeDomainData.from_txt(
             args.data_file, pulse_number=args.pulse_number)
 
-    #dt = 0.02
-    #sample_rate = data.N / data.duration
-    #dw = int(dt / 2 * sample_rate)
-    #idxmid = int(0.5 * data.N)
-    #tmin = idxmid - dw
-    #tmax = idxmid + dw
-    #import IPython; IPython.embed()
-    #data.time = data.time[tmin: tmax]
-    #data.flux = data.flux[tmin: tmax]
-
     return model, data
 
 
 def get_priors(args, data):
     priors = bilby.core.prior.PriorDict()
     priors['base_flux'] = bilby.core.prior.Uniform(
-        0, 0.05 * data.max_flux, 'base_flux', latex_label='base flux')
+        0, 0.5 * data.max_flux, 'base_flux', latex_label='base flux')
     priors['toa'] = bilby.core.prior.Uniform(
-        data.start, data.end, 'toa', boundary="periodic")
-    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-5, 'beta')
+        data.start, data.end, 'toa')
+    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-1, 'beta')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
-        priors[key] = bilby.core.prior.LogUniform(1e-10, 5, key)
-    priors['sigma'] = bilby.core.prior.Uniform(0, 300, 'sigma')
+        priors[key] = bilby.core.prior.LogUniform(1e-10, 1, key)
+    priors['sigma'] = bilby.core.prior.Uniform(0, 10, 'sigma')
     return priors
 
 
@@ -69,8 +59,7 @@ def run_analysis(inputs, data, model, priors):
     likelihood = PulsarLikelihood(data, model)
 
     run_sampler_kwargs = dict(
-        sampler='dynesty', walks=25, nlive=500, n_check_point=5000,
-        check_point=True)
+        sampler='dynesty', nlive=250, walks=25, queue_size=4)
 
     result = bilby.sampler.run_sampler(
         likelihood=likelihood, priors=priors, label=inputs.label,
@@ -111,8 +100,9 @@ def save(inputs, data, result, result_null):
         rows.append('C{}'.format(i))
         rows.append('C{}_err'.format(i))
 
-    summary_outdir = 'single_pulse'
-    filename = '{}/vela_single_pulse_{}_shapelets.summary'.format(
+    summary_outdir = 'single_pulse_summary'
+    bilby.core.utils.check_directory_exists_and_if_not_mkdir(summary_outdir)
+    filename = '{}/{}_shapelets.summary'.format(
         summary_outdir, inputs.n_shapelets)
     if os.path.isfile(filename) is False:
         with open(filename, 'w+') as f:
