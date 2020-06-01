@@ -52,15 +52,10 @@ class PulsarLikelihood(bilby.core.likelihood.Likelihood):
         self.x = data.time
         self.y = data.flux
         self.func = model
-        print(
-            "Found {} x-data points and {} y-data points".format(
-                len(self.x), len(self.y)
-            )
-        )
-        if np.ptp(np.diff(self.x)) < 1e-10:
-            print("Data evenly sampled")
-        else:
-            print("Data not evenly sampled")
+        #if np.ptp(np.diff(self.x)) < 1e-10:
+        #    print("Data evenly sampled")
+        #else:
+        #    print("Data not evenly sampled")
 
     def log_likelihood(self):
         log_l = np.sum(

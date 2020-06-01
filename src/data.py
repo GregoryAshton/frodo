@@ -54,7 +54,6 @@ class TimeDomainData:
         df = pd.read_csv(filename, sep=" ")
         return cls._sort_and_filter_dataframe(df, dtstart, duration, pulse_number)
 
-
     def from_csv(cls, filename, dtstart=None, duration=None, pulse_number=None):
         """ Read in the time and flux from a csv
 
@@ -86,7 +85,7 @@ class TimeDomainData:
 
         df = df[(tstart <= df.time) & (df.time < tstart + duration)]
 
-        df = df[df.pulse_number == pulse_number]
+        # df = df[df.pulse_number == pulse_number]
 
         # if pulse_number is not None:
         #     if pulse_number in df.pulse_number.values:
