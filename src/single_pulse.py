@@ -88,7 +88,6 @@ def run_analysis(args, data, model, priors):
         label=args.label + '_null', outdir=args.outdir, save=False,
         check_point=False, check_point_plot=False,
         **run_sampler_kwargs)
-    result_null = None
 
     return result, result_null
 
