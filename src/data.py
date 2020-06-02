@@ -169,7 +169,8 @@ class TimeDomainData:
 
         # Plot the maximum likelihood
         s = result.posterior.iloc[result.posterior.log_likelihood.idxmax()]
-        ax1.plot(self.time, model(self.time, **s), lw=0.5, color="C2")
+        maxl = model(self.time, **s)
+        ax1.plot(self.time, maxl, lw=0.5, color="C2")
 
         median_sigma = np.median(result.posterior["sigma"])
         ax2.axhspan(-median_sigma, median_sigma, color='k', alpha=0.2)
@@ -180,11 +181,15 @@ class TimeDomainData:
             np.quantile(res_preds, 0.05, axis=0),
             np.quantile(res_preds, 0.95, axis=0),
             color='C1', alpha=0.5)
-        ax2.plot(self.time, self.flux - model(self.time, **s), "C0", lw=0.5)
+        ax2.plot(self.time, self.flux - maxl, "C0", lw=0.5)
 
         ax1.set_ylabel("Flux [Arb. Units]")
         ax2.set_xlabel("Time [s]")
         ax2.set_ylabel("Flux residual")
+
+        maxl_peak = np.max(maxl)
+        times_near_peak = self.time[np.abs(maxl) > 1e-7 * maxl_peak]
+        ax1.set_xlim(np.min(times_near_peak), np.max(times_near_peak))
 
         fig.tight_layout()
         fig.savefig(
