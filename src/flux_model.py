@@ -53,7 +53,7 @@ class SinglePulseFluxModel(BaseFluxModel):
 
     def __call__(self, time, **kwargs):
         x = (time - kwargs["toa"]) / kwargs["beta"]
-        pre = np.exp(-x ** 2 / 2) / np.sqrt(kwargs["beta"])
+        pre = np.exp(-x ** 2 / 2) #/ np.sqrt(kwargs["beta"])
         coefs = [
             kwargs[self.amp_keys[i]] for i in range(self.n_shapelets)
         ] / self.normalisation

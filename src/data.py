@@ -91,16 +91,6 @@ class TimeDomainData:
 
         df = df[df.pulse_number == pulse_number]
 
-        # if pulse_number is not None:
-        #     if pulse_number in df.pulse_number.values:
-        #         # This shifts the window of pulses to be centered on the start
-        #         # which is where the pulse is for zero-phase data
-        #         match_idx = np.arange(len(df))[df.pulse_number == pulse_number]
-        #         shift_idx = match_idx - int(len(match_idx) / 2.0)
-        #         df = df.iloc[shift_idx]
-        #     else:
-        #         raise ValueError("No data for pulse_number={}".format(pulse_number))
-
         time_domain_data = TimeDomainData()
         time_domain_data.time = df.time.values
         time_domain_data.flux = df.flux.values
@@ -139,7 +129,7 @@ class TimeDomainData:
             "{}/{}_maxl_with_data.png".format(result.outdir, result.label), dpi=500
         )
 
-    def plot_fit(self, result=None, model=None):
+    def plot_fit(self, result, model, priors, outdir, label, tref=None):
         """ Plot the data and the fit and a residual
 
         Parameters
@@ -150,50 +140,71 @@ class TimeDomainData:
             Function fitted to the data
 
         """
+
+        if result:
+            s = result.posterior.iloc[result.posterior.log_likelihood.idxmax()]
+            maxl = model(self.time, **s)
+            tref = s["toa"]  # Set the reference time to the max-l TOA
+        else:
+            tref = .5 * (self.start + self.end)
+
+        times = self.time - tref
+
         fig, (ax1, ax2) = plt.subplots(
             nrows=2, sharex=True, figsize=(5, 4), gridspec_kw=dict(height_ratios=[2, 1]))
 
-        ax1.plot(self.time, self.flux, label="data", lw=1, color="C0")
+        # Plot the time prior window
+        for ax in [ax1, ax2]:
+            ax.axvspan(
+                priors["toa"].minimum - tref,
+                priors["toa"].maximum - tref,
+                color='k', alpha=0.1)
 
-        # Plot the 90%
-        npreds = 100
-        preds = np.zeros((npreds, len(self.time)))
-        for ii in range(npreds):
-            s = result.posterior.iloc[np.random.randint(len(result.posterior))]
-            preds[ii] = model(self.time, **s)
-        ax1.fill_between(
-            self.time,
-            np.quantile(preds, q=0.05, axis=0),
-            np.quantile(preds, q=0.95, axis=0),
-            color="C1", alpha=0.8)
+        # Plot the data
+        ax1.plot(times, self.flux, label="data", lw=1, color="C0", zorder=-100)
 
-        # Plot the maximum likelihood
-        s = result.posterior.iloc[result.posterior.log_likelihood.idxmax()]
-        maxl = model(self.time, **s)
-        ax1.plot(self.time, maxl, lw=0.5, color="C2")
+        if result:
+            # Plot the 90%
+            npreds = 100
+            nsamples = len(result.posterior)
+            preds = np.zeros((npreds, len(times)))
+            for ii in range(npreds):
+                draw = result.posterior.iloc[np.random.randint(nsamples)]
+                preds[ii] = model(self.time, **draw)
+            ax1.fill_between(
+                times,
+                np.quantile(preds, q=0.05, axis=0),
+                np.quantile(preds, q=0.95, axis=0),
+                color="C1", alpha=0.8, zorder=0)
 
-        median_sigma = np.median(result.posterior["sigma"])
-        ax2.axhspan(-median_sigma, median_sigma, color='k', alpha=0.2)
+            # Plot the maximum likelihood
+            ax1.plot(times, maxl, lw=0.5, color="C2", zorder=100)
 
-        res_preds = self.flux - preds
-        ax2.fill_between(
-            self.time,
-            np.quantile(res_preds, 0.05, axis=0),
-            np.quantile(res_preds, 0.95, axis=0),
-            color='C1', alpha=0.5)
-        ax2.plot(self.time, self.flux - maxl, "C0", lw=0.5)
+            # Plot the sigma uncertainty on the residual
+            median_sigma = np.median(result.posterior["sigma"])
+            ax2.axhspan(-median_sigma, median_sigma, color='k', alpha=0.2)
+
+            res_preds = self.flux - preds
+            ax2.fill_between(
+                times,
+                np.quantile(res_preds, 0.05, axis=0),
+                np.quantile(res_preds, 0.95, axis=0),
+                color='C1', alpha=0.5, zorder=0)
+            ax2.plot(times, self.flux - maxl, "C0", lw=0.5, zorder=100)
+
+            # Auto-zoom to interesting region
+            maxl_peak = np.max(maxl)
+            times_near_peak = times[np.abs(maxl) > 1e-7 * maxl_peak]
+            if len(times_near_peak) > 100:
+                ax1.set_xlim(np.min(times_near_peak), np.max(times_near_peak))
 
         ax1.set_ylabel("Flux [Arb. Units]")
-        ax2.set_xlabel("Time [s]")
+        ax2.set_xlabel("Time - {} [days]".format(tref))
         ax2.set_ylabel("Flux residual")
-
-        maxl_peak = np.max(maxl)
-        times_near_peak = self.time[np.abs(maxl) > 1e-7 * maxl_peak]
-        ax1.set_xlim(np.min(times_near_peak), np.max(times_near_peak))
 
         fig.tight_layout()
         fig.savefig(
-            "{}/{}_maxl_with_data.png".format(result.outdir, result.label),
+            "{}/{}_fit_with_data.png".format(outdir, label),
             dpi=600
         )
 

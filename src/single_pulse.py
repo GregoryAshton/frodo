@@ -15,6 +15,7 @@ from .priors import get_priors
 mpl.rcParams["font.family"] = "serif"
 mpl.rcParams["font.serif"] = "Computer Modern"
 mpl.rcParams["text.usetex"] = "True"
+mpl.rcParams['text.latex.preamble'] = r'\newcommand{\mathdefault}[1][]{}'
 
 
 def get_args():
@@ -30,15 +31,16 @@ def get_args():
     parser.add_argument('--plot-run', action='store_true', help='Create run plots')
 
     parser.add_argument('--base-flux', action='store_true', help='Infer a base flux')
-    parser.add_argument('--fractional-time-prior-width', type=float, default=0.1)
-    parser.add_argument('--beta-max', type=float, default=1)
-    parser.add_argument('--c-max-multiplier', type=float, default=0.1)
+    parser.add_argument('--fractional-time-prior-width', type=float, default=0.05)
+    parser.add_argument('--beta-max', type=float, default=1e-6)
+    parser.add_argument('--c-max-multiplier', type=float, default=1)
     parser.add_argument('--c-mix', type=float, default=0.5)
-    parser.add_argument('--sigma-multiplier', type=float, default=0.1)
+    parser.add_argument('--sigma-multiplier', type=float, default=1)
 
     parser.add_argument('--sampler', type=str, default="dynesty")
-    parser.add_argument('--nlive', type=int, default=250)
+    parser.add_argument('--nlive', type=int, default=500)
     parser.add_argument('--walks', type=int, default=25)
+    parser.add_argument('--dlogz', type=int, default=1.0)
     parser.add_argument('--cpus', type=int, default=4)
 
     args, _ = parser.parse_known_args()
@@ -56,6 +58,10 @@ def get_model_and_data(args):
         data = TimeDomainData.from_txt(
             args.data_file, pulse_number=args.pulse_number)
 
+    #idxs = np.abs(data.time - data.max_time) < 0.05 * data.duration
+    #data.time = data.time[idxs]
+    #data.flux = data.flux[idxs]
+
     return model, data
 
 
@@ -64,7 +70,7 @@ def run_analysis(args, data, model, priors):
 
     run_sampler_kwargs = dict(
         sampler=args.sampler, nlive=args.nlive, walks=args.walks,
-        queue_size=args.cpus)
+        queue_size=args.cpus, dlogz=args.dlogz)
 
     result = bilby.sampler.run_sampler(
         likelihood=likelihood, priors=priors, label=args.label,
@@ -74,10 +80,6 @@ def run_analysis(args, data, model, priors):
     s = result.posterior.iloc[result.posterior.log_likelihood.idxmax()]
     residual = data.flux - model(data.time, **s)
 
-    result.meta_data['args'] = args.__dict__
-    result.meta_data['residual'] = residual
-    result.meta_data['RMS_residual'] = np.sqrt(np.mean(residual**2))
-    result.save_to_file()
 
     priors_null = bilby.core.prior.PriorDict()
     priors_null['sigma'] = priors['sigma']
@@ -86,8 +88,15 @@ def run_analysis(args, data, model, priors):
     result_null = bilby.sampler.run_sampler(
         likelihood=likelihood_null, priors=priors_null,
         label=args.label + '_null', outdir=args.outdir, save=False,
-        check_point=False, check_point_plot=False,
+        check_point=True, check_point_plot=False, verbose=False,
         **run_sampler_kwargs)
+
+    result.log_noise_evidence = result_null.log_evidence
+    result.log_noise_evidence_err = result_null.log_evidence_err
+    result.meta_data['args'] = args.__dict__
+    result.meta_data['residual'] = residual
+    result.meta_data['RMS_residual'] = np.sqrt(np.mean(residual**2))
+    result.save_to_file()
 
     return result, result_null
 
@@ -129,16 +138,22 @@ def main():
     args = get_args()
 
     args.outdir = 'outdir_single_pulse_{}'.format(args.pulse_number)
+    bilby.core.utils.check_directory_exists_and_if_not_mkdir(args.outdir)
     args.label = 'single_pulse_{}_shapelets'.format(args.n_shapelets)
 
     model, data = get_model_and_data(args)
     priors = get_priors(args, data)
+
+    # Pre-plot the data and prior window
+    if args.plot_fit:
+        data.plot_fit(None, model, priors, outdir=args.outdir, label=args.label)
+
     result, result_null = run_analysis(args, data, model, priors)
 
     if args.plot_corner:
         result.plot_corner(priors=True)
 
     if args.plot_fit:
-        data.plot_fit(result, model)
+        data.plot_fit(result, model, priors, outdir=args.outdir, label=args.label)
 
     save(args, data, result, result_null)

@@ -1,4 +1,5 @@
 from bilby.core.prior import Prior, Uniform, PriorDict, LogUniform
+import numpy as np
 
 
 def get_priors(args, data):
@@ -13,11 +14,11 @@ def get_priors(args, data):
     dt = 0.5 * args.fractional_time_prior_width * data.duration
     priors['toa'] = Uniform(
         data.max_time - dt, data.max_time + dt, "toa")
-    priors['beta'] = LogUniform(1e-8, args.beta_max, 'beta')
+    priors['beta'] = Uniform(0, args.beta_max, 'beta', latex_label=r'$\beta$')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
         priors[key] = SpikeAndSlab(
-            slab=Uniform(0, args.c_max_multiplier * data.max_flux),
+            slab=Uniform(0, args.c_max_multiplier * np.abs(data.max_flux)),
             name=key, mix=args.c_mix)
 
     priors['sigma'] = Uniform(0, args.sigma_multiplier * data.max_flux, 'sigma')
