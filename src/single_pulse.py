@@ -79,15 +79,15 @@ def run_analysis(args, data, model, priors):
     result.meta_data['RMS_residual'] = np.sqrt(np.mean(residual**2))
     result.save_to_file()
 
-    #priors_null = bilby.core.prior.PriorDict()
-    #priors_null['sigma'] = priors['sigma']
-    #priors_null['base_flux'] = priors['base_flux']
-    #likelihood_null = NullLikelihood(data)
-    #result_null = bilby.sampler.run_sampler(
-    #    likelihood=likelihood_null, priors=priors_null,
-    #    label=args.label + '_null', outdir=args.outdir, save=False,
-    #    check_point=False, check_point_plot=False,
-    #    **run_sampler_kwargs)
+    priors_null = bilby.core.prior.PriorDict()
+    priors_null['sigma'] = priors['sigma']
+    priors_null['base_flux'] = priors['base_flux']
+    likelihood_null = NullLikelihood(data)
+    result_null = bilby.sampler.run_sampler(
+        likelihood=likelihood_null, priors=priors_null,
+        label=args.label + '_null', outdir=args.outdir, save=False,
+        check_point=False, check_point_plot=False,
+        **run_sampler_kwargs)
     result_null = None
 
     return result, result_null
