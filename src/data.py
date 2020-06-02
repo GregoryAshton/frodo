@@ -34,6 +34,10 @@ class TimeDomainData:
     def max_flux(self):
         return np.max(self.flux)
 
+    @property
+    def max_time(self):
+        return self.time[np.argmax(self.flux)]
+
     @classmethod
     def from_txt(cls, filename, dtstart=None, duration=None, pulse_number=None):
         """ Read in the time and flux from a txt file
@@ -85,7 +89,7 @@ class TimeDomainData:
 
         df = df[(tstart <= df.time) & (df.time < tstart + duration)]
 
-        # df = df[df.pulse_number == pulse_number]
+        df = df[df.pulse_number == pulse_number]
 
         # if pulse_number is not None:
         #     if pulse_number in df.pulse_number.values:
