@@ -4,10 +4,12 @@ import argparse
 
 import numpy as np
 import bilby
+from bilby.core.prior import Uniform, LogUniform
 
 from .flux_model import SinglePulseFluxModel
 from .data import TimeDomainData
 from .likelihood import PulsarLikelihood, NullLikelihood
+from .priors import SpikeAndSlab
 
 
 def get_inputs():
@@ -19,6 +21,7 @@ def get_inputs():
     parser.add_argument('-d', '--data-file', type=str, help='The data file',
                         required=True)
     parser.add_argument('--plot', action='store_true', help='Create plots')
+    parser.add_argument('--null', action='store_true', help='')
     args, _ = parser.parse_known_args()
 
     # Set up some labels
@@ -43,15 +46,16 @@ def get_model_and_data(args):
 
 def get_priors(args, data):
     priors = bilby.core.prior.PriorDict()
-    priors['base_flux'] = bilby.core.prior.Uniform(
-        0, 0.5 * data.max_flux, 'base_flux', latex_label='base flux')
-    priors['toa'] = bilby.core.prior.Uniform(
-        data.start, data.end, 'toa')
-    priors['beta'] = bilby.core.prior.LogUniform(1e-8, 1e-1, 'beta')
+    priors['base_flux'] = 0 #bilby.core.prior.Uniform(0, data.max_flux, 'base_flux', latex_label='base flux')
+    priors['toa'] = data.max_time  # Uniform(data.start, data.end, 'toa')
+    priors['beta'] = LogUniform(1e-8, 1e-1, 'beta')
     for i in range(args.n_shapelets):
         key = 'C{}'.format(i)
-        priors[key] = bilby.core.prior.LogUniform(1e-10, 1, key)
-    priors['sigma'] = bilby.core.prior.Uniform(0, 10, 'sigma')
+        priors[key] = SpikeAndSlab(
+            slab=Uniform(0, data.max_flux, key), name=key, mix=0.0)
+        priors[key] = Uniform(1e-4, 1, key)
+
+    priors['sigma'] = Uniform(0, .1 * data.max_flux, 'sigma')
     return priors
 
 
@@ -71,14 +75,17 @@ def run_analysis(inputs, data, model, priors):
     result.meta_data['RMS_residual'] = np.sqrt(np.mean(residual**2))
     result.save_to_file()
 
-    priors_null = bilby.core.prior.PriorDict()
-    priors_null['sigma'] = priors['sigma']
-    priors_null['base_flux'] = priors['base_flux']
-    likelihood_null = NullLikelihood(data)
-    result_null = bilby.sampler.run_sampler(
-        likelihood=likelihood_null, priors=priors_null,
-        label=inputs.label + '_null',
-        outdir=inputs.outdir, **run_sampler_kwargs)
+    if inputs.null:
+        priors_null = bilby.core.prior.PriorDict()
+        priors_null['sigma'] = priors['sigma']
+        priors_null['base_flux'] = priors['base_flux']
+        likelihood_null = NullLikelihood(data)
+        result_null = bilby.sampler.run_sampler(
+            likelihood=likelihood_null, priors=priors_null,
+            label=inputs.label + '_null',
+            outdir=inputs.outdir, **run_sampler_kwargs)
+    else:
+        result_null = None
 
     return result, result_null
 
@@ -88,7 +95,8 @@ def plot(data, model, result, result_null):
     xlims = None
     result.plot_corner(priors=True)
     data.plot(result, model, xlims=xlims)
-    result_null.plot_corner(priors=True)
+    if result_null is not None:
+        result_null.plot_corner(priors=True)
 
 
 def save(inputs, data, result, result_null):
@@ -131,4 +139,4 @@ def main():
     result, result_null = run_analysis(inputs, data, model, priors)
     if inputs.plot:
         plot(data, model, result, result_null)
-    save(inputs, data, result, result_null)
+    # save(inputs, data, result, result_null)
