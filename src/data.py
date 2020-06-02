@@ -106,8 +106,8 @@ class TimeDomainData:
         time_domain_data.flux = df.flux.values
         return time_domain_data
 
-    def plot(self, result=None, model=None, xlims=None):
-        """ Plot the data and make likelihood
+    def plot_max_likelihood(self, result=None, model=None, xlims=None):
+        """ Plot the data and max-likelihood
 
         Parameters
         ----------
@@ -137,6 +137,59 @@ class TimeDomainData:
         fig.tight_layout()
         fig.savefig(
             "{}/{}_maxl_with_data.png".format(result.outdir, result.label), dpi=500
+        )
+
+    def plot_fit(self, result=None, model=None):
+        """ Plot the data and the fit and a residual
+
+        Parameters
+        ----------
+        result: bilby.core.result.Result
+            The result object to show alongside the data
+        model: function
+            Function fitted to the data
+
+        """
+        fig, (ax1, ax2) = plt.subplots(
+            nrows=2, sharex=True, figsize=(5, 4), gridspec_kw=dict(height_ratios=[2, 1]))
+
+        ax1.plot(self.time, self.flux, label="data", lw=1, color="C0")
+
+        # Plot the 90%
+        npreds = 100
+        preds = np.zeros((npreds, len(self.time)))
+        for ii in range(npreds):
+            s = result.posterior.iloc[np.random.randint(len(result.posterior))]
+            preds[ii] = model(self.time, **s)
+        ax1.fill_between(
+            self.time,
+            np.quantile(preds, q=0.05, axis=0),
+            np.quantile(preds, q=0.95, axis=0),
+            color="C1", alpha=0.8)
+
+        # Plot the maximum likelihood
+        s = result.posterior.iloc[result.posterior.log_likelihood.idxmax()]
+        ax1.plot(self.time, model(self.time, **s), lw=0.5, color="C2")
+
+        median_sigma = np.median(result.posterior["sigma"])
+        ax2.axhspan(-median_sigma, median_sigma, color='k', alpha=0.2)
+
+        res_preds = self.flux - preds
+        ax2.fill_between(
+            self.time,
+            np.quantile(res_preds, 0.05, axis=0),
+            np.quantile(res_preds, 0.95, axis=0),
+            color='C1', alpha=0.5)
+        ax2.plot(self.time, self.flux - model(self.time, **s), "C0", lw=0.5)
+
+        ax1.set_ylabel("Flux [Arb. Units]")
+        ax2.set_xlabel("Time [s]")
+        ax2.set_ylabel("Flux residual")
+
+        fig.tight_layout()
+        fig.savefig(
+            "{}/{}_maxl_with_data.png".format(result.outdir, result.label),
+            dpi=600
         )
 
     @property

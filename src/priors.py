@@ -1,4 +1,27 @@
-from bilby.core.prior import Prior, Uniform
+from bilby.core.prior import Prior, Uniform, PriorDict, LogUniform
+
+
+def get_priors(args, data):
+    priors = PriorDict()
+
+    if args.base_flux:
+        priors['base_flux'] = Uniform(
+            0, data.max_flux, 'base_flux', latex_label='base flux')
+    else:
+        priors["base_flux"] = 0
+
+    dt = 0.5 * args.fractional_time_prior_width * data.duration
+    priors['toa'] = Uniform(
+        data.max_time - dt, data.max_time + dt, "toa")
+    priors['beta'] = LogUniform(1e-8, args.beta_max, 'beta')
+    for i in range(args.n_shapelets):
+        key = 'C{}'.format(i)
+        priors[key] = SpikeAndSlab(
+            slab=Uniform(0, args.c_max_multiplier * data.max_flux),
+            name=key, mix=args.c_mix)
+
+    priors['sigma'] = Uniform(0, args.sigma_multiplier * data.max_flux, 'sigma')
+    return priors
 
 
 class SpikeAndSlab(Prior):
